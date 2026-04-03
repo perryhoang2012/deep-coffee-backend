@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
 from models.base import BaseModel
 
 class Camera(BaseModel):
@@ -8,6 +9,8 @@ class Camera(BaseModel):
     location = Column(String, nullable=True)
     status = Column(String, default="active") # active, inactive, offline
     stream_source = Column(String, nullable=True)
+
+    recognition_events = relationship("RecognitionEvent", back_populates="camera")
 
 class RecognitionEvent(BaseModel):
     __tablename__ = "recognition_events"
@@ -19,6 +22,9 @@ class RecognitionEvent(BaseModel):
     result_status = Column(String, default="matched") # matched, unknown, skipped
     recognized_at = Column(DateTime, nullable=False)
 
+    camera = relationship("Camera", back_populates="recognition_events")
+    greeting_events = relationship("GreetingEvent", back_populates="recognition_event")
+
 class GreetingEvent(BaseModel):
     __tablename__ = "greeting_events"
     
@@ -27,3 +33,5 @@ class GreetingEvent(BaseModel):
     greeting_message = Column(String, nullable=False)
     status = Column(String, default="triggered") # triggered, failed
     greeted_at = Column(DateTime, nullable=False)
+
+    recognition_event = relationship("RecognitionEvent", back_populates="greeting_events")

@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_USER: deepcoffee_user
       POSTGRES_PASSWORD: deepcoffee_password
-      POSTGRES_DB: deepcoffeee
+      POSTGRES_DB: deepcoffee
     ports:
       - "5432:5432"
     volumes:

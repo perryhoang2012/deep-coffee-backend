@@ -9,6 +9,8 @@ class Category(BaseModel):
     status = Column(String, default="active")
     sort_order = Column(Integer, default=0)
 
+    products = relationship("Product", back_populates="category")
+
 class Product(BaseModel):
     __tablename__ = "products"
     
@@ -18,6 +20,8 @@ class Product(BaseModel):
     price = Column(Float, nullable=False)
     status = Column(String, default="active")
     image_url = Column(String, nullable=True)
+
+    category = relationship("Category", back_populates="products")
 
 class Table(BaseModel):
     __tablename__ = "tables"
@@ -49,6 +53,9 @@ class Invoice(BaseModel):
     created_by = Column(Integer, ForeignKey("users.id"))
     issued_at = Column(DateTime, nullable=True)
 
+    items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
+    payments = relationship("Payment", back_populates="invoice", cascade="all, delete-orphan")
+
 class InvoiceItem(BaseModel):
     __tablename__ = "invoice_items"
     
@@ -60,6 +67,8 @@ class InvoiceItem(BaseModel):
     line_total = Column(Float, default=0.0)
     note = Column(String, nullable=True)
 
+    invoice = relationship("Invoice", back_populates="items")
+
 class Payment(BaseModel):
     __tablename__ = "payments"
     
@@ -68,3 +77,5 @@ class Payment(BaseModel):
     amount = Column(Float, nullable=False)
     paid_at = Column(DateTime, nullable=False)
     reference_code = Column(String, nullable=True)
+
+    invoice = relationship("Invoice", back_populates="payments")

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeepCoffee Face Test</title>
+  <style>
+    :root {
+      --bg: #f4efe7;
+      --panel: #fffaf2;
+      --ink: #2d1f16;
+      --accent: #9d4b21;
+      --accent-2: #2f6f5e;
+      --line: #decfbf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background:
+        radial-gradient(circle at top left, #fff7df 0, transparent 30%),
+        linear-gradient(135deg, #efe5d6, #f8f2ea 50%, #ede1d3 100%);
+      color: var(--ink);
+    }
+    .wrap {
+      width: min(1100px, calc(100% - 32px));
+      margin: 32px auto;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 12px 40px rgba(85, 51, 27, 0.08);
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+      font-weight: 700;
+    }
+    p { line-height: 1.55; }
+    video, canvas, img {
+      width: 100%;
+      border-radius: 16px;
+      background: #231711;
+      display: block;
+    }
+    .actions, .form-grid, .seed-grid, .upload-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .actions {
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: 14px;
+    }
+    .form-grid {
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 16px;
+    }
+    .seed-grid {
+      grid-template-columns: 1fr 1fr 1fr;
+      margin: 18px 0 8px;
+    }
+    .upload-grid {
+      grid-template-columns: 1fr 1fr 1fr;
+      margin: 8px 0 18px;
+    }
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 14px;
+    }
+    input, button, select {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font: inherit;
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+    button.secondary {
+      background: var(--accent-2);
+    }
+    button.ghost {
+      background: transparent;
+      color: var(--ink);
+    }
+    button:hover { transform: translateY(-1px); }
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow: auto;
+      background: #2b2018;
+      color: #f9ecd7;
+      border-radius: 16px;
+      min-height: 280px;
+      font-size: 13px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #f0dfcb;
+      color: #6d3618;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .status {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #6d3618;
+    }
+    @media (max-width: 860px) {
+      .wrap, .actions, .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card">
+      <div class="pill">OpenCV webcam test page</div>
+      <h1>Test nhan dien khuon mat</h1>
+      <p>Trang nay mo webcam, chup frame hien tai va gui anh len backend qua endpoint <code>/api/v1/events/recognition/image</code>.</p>
+
+      <div class="form-grid">
+        <label>
+          Camera ID hoac ten
+          <input id="cameraId" value="cam_01">
+        </label>
+        <label>
+          Customer ID test
+          <input id="customerId" type="number" min="1" placeholder="de trong neu de backend tu match">
+        </label>
+      </div>
+
+      <div class="seed-grid">
+        <label>
+          Seed customer ID
+          <input id="seedCustomerId" type="number" min="1" placeholder="vd 1">
+        </label>
+        <label>
+          So anh nhan ban
+          <input id="duplicateFaces" type="number" min="1" value="10">
+        </label>
+        <label>
+          So bill test
+          <input id="invoiceDays" type="number" min="10" value="10">
+        </label>
+      </div>
+
+      <div class="upload-grid">
+        <label>
+          Upload face cho customer
+          <input id="uploadCustomerId" type="number" min="1" placeholder="vd 1">
+        </label>
+        <label>
+          Chon anh khuon mat
+          <input id="faceFile" type="file" accept="image/*">
+        </label>
+        <label>
+          &nbsp;
+          <button id="uploadFaceBtn" type="button">Dang ky anh mat</button>
+        </label>
+      </div>
+
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas" hidden></canvas>
+
+      <div class="actions">
+        <button id="startBtn">Bat webcam</button>
+        <button id="captureBtn" class="secondary">Chup va nhan dien</button>
+        <button id="seedBtn">Tao du lieu loyal test</button>
+        <button id="resetCooldownBtn" class="secondary">Reset greeting cooldown</button>
+        <button id="stopBtn" class="ghost">Dung webcam</button>
+      </div>
+
+      <div class="status" id="status">San sang test.</div>
+    </section>
+
+    <aside class="card">
+      <div class="pill">Ket qua backend</div>
+      <h2>Response</h2>
+      <pre id="result">{}</pre>
+    </aside>
+  </div>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const result = document.getElementById("result");
+    const statusEl = document.getElementById("status");
+    let stream;
+
+    function speakGreeting(message) {
+      if (!("speechSynthesis" in window) || !message) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = "vi-VN";
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        video.srcObject = stream;
+        statusEl.textContent = "Webcam da bat. Ban co the chup anh de test.";
+      } catch (error) {
+        statusEl.textContent = "Khong mo duoc webcam: " + error.message;
+      }
+    }
+
+    function stopCamera() {
+      if (!stream) return;
+      stream.getTracks().forEach(track => track.stop());
+      video.srcObject = null;
+      stream = null;
+      statusEl.textContent = "Webcam da dung.";
+    }
+
+    async function captureAndRecognize() {
+      if (!stream) {
+        statusEl.textContent = "Hay bat webcam truoc.";
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      statusEl.textContent = "Dang gui anh len backend...";
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      const formData = new FormData();
+      formData.append("camera_id", document.getElementById("cameraId").value.trim());
+      formData.append("image", blob, "capture.jpg");
+
+      const customerId = document.getElementById("customerId").value.trim();
+      if (customerId) {
+        formData.append("customer_id", customerId);
+      }
+
+      try {
+        const response = await fetch("/api/v1/events/recognition/image", {
+          method: "POST",
+          body: formData
+        });
+        const rawText = await response.text();
+        let data;
+        try {
+          data = rawText ? JSON.parse(rawText) : { error: "Empty response body" };
+        } catch (parseError) {
+          data = {
+            error: "Response is not valid JSON",
+            status: response.status,
+            raw: rawText
+          };
+        }
+
+        if (!response.ok) {
+          data.http_status = response.status;
+        }
+
+        result.textContent = JSON.stringify(data, null, 2);
+        statusEl.textContent = response.ok ? "Da nhan response tu backend." : "Backend tra ve loi.";
+        if (response.ok && data.was_greeted && data.greeting_message) {
+          speakGreeting(data.greeting_message);
+        }
+      } catch (error) {
+        result.textContent = JSON.stringify({ error: error.message }, null, 2);
+        statusEl.textContent = "Gui request that bai.";
+      }
+    }
+
+    async function seedLoyalScenario() {
+      const seedCustomerId = document.getElementById("seedCustomerId").value.trim();
+      if (!seedCustomerId) {
+        statusEl.textContent = "Nhap Seed customer ID truoc.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("customer_id", seedCustomerId);
+      formData.append("camera_id", document.getElementById("cameraId").value.trim() || "cam_01");
+      formData.append("duplicate_faces", document.getElementById("duplicateFaces").value.trim() || "10");
+      formData.append("invoice_days", document.getElementById("invoiceDays").value.trim() || "10");
+
+      statusEl.textContent = "Dang tao du lieu loyal test...";
+      try {
+        const response = await fetch("/api/v1/events/test-scenario/seed-loyal-customer", {
+          method: "POST",
+          body: formData
+        });
+        const data = await response.json();
+        result.textContent = JSON.stringify(data, null, 2);
+        statusEl.textContent = response.ok ? "Da tao xong du lieu loyal test." : "Khong tao duoc du lieu test.";
+        if (response.ok) {
+          document.getElementById("customerId").value = seedCustomerId;
+        }
+      } catch (error) {
+        result.textContent = JSON.stringify({ error: error.message }, null, 2);
+        statusEl.textContent = "Tao du lieu test that bai.";
+      }
+    }
+
+    async function resetGreetingCooldown() {
+      const customerId = document.getElementById("customerId").value.trim() || document.getElementById("seedCustomerId").value.trim();
+      if (!customerId) {
+        statusEl.textContent = "Nhap customer ID truoc khi reset greeting cooldown.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("customer_id", customerId);
+      statusEl.textContent = "Dang reset greeting cooldown...";
+
+      try {
+        const response = await fetch("/api/v1/events/test-scenario/reset-greeting-cooldown", {
+          method: "POST",
+          body: formData
+        });
+        const data = await response.json();
+        result.textContent = JSON.stringify(data, null, 2);
+        statusEl.textContent = response.ok ? "Da reset greeting cooldown." : "Reset greeting cooldown that bai.";
+      } catch (error) {
+        result.textContent = JSON.stringify({ error: error.message }, null, 2);
+        statusEl.textContent = "Reset greeting cooldown that bai.";
+      }
+    }
+
+    async function uploadCustomerFace() {
+      const uploadCustomerId = document.getElementById("uploadCustomerId").value.trim();
+      const faceFile = document.getElementById("faceFile").files[0];
+
+      if (!uploadCustomerId) {
+        statusEl.textContent = "Nhap customer ID de upload anh mat.";
+        return;
+      }
+      if (!faceFile) {
+        statusEl.textContent = "Chon anh khuon mat truoc.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("customer_id", uploadCustomerId);
+      formData.append("image", faceFile);
+      formData.append("is_primary", "true");
+
+      statusEl.textContent = "Dang upload anh mat...";
+      try {
+        const response = await fetch("/api/v1/events/test-scenario/register-face", {
+          method: "POST",
+          body: formData
+        });
+        const data = await response.json();
+        result.textContent = JSON.stringify(data, null, 2);
+        statusEl.textContent = response.ok ? "Da dang ky anh mat xong." : "Upload anh mat that bai.";
+        if (response.ok) {
+          document.getElementById("seedCustomerId").value = uploadCustomerId;
+          document.getElementById("customerId").value = uploadCustomerId;
+        }
+      } catch (error) {
+        result.textContent = JSON.stringify({ error: error.message }, null, 2);
+        statusEl.textContent = "Upload anh mat that bai.";
+      }
+    }
+
+    document.getElementById("startBtn").addEventListener("click", startCamera);
+    document.getElementById("stopBtn").addEventListener("click", stopCamera);
+    document.getElementById("captureBtn").addEventListener("click", captureAndRecognize);
+    document.getElementById("seedBtn").addEventListener("click", seedLoyalScenario);
+    document.getElementById("uploadFaceBtn").addEventListener("click", uploadCustomerFace);
+    document.getElementById("resetCooldownBtn").addEventListener("click", resetGreetingCooldown);
+  </script>
+</body>
+</html>

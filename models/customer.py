@@ -10,8 +10,8 @@ class Customer(BaseModel):
     gender = Column(String, nullable=True) # male, female, other
     birthday = Column(Date, nullable=True)
     note = Column(String, nullable=True)
-    
-    # relationships can be added here if needed, like invoices
+
+    faces = relationship("CustomerFace", back_populates="customer", cascade="all, delete-orphan")
 
 class CustomerFace(BaseModel):
     __tablename__ = "customer_faces"
@@ -22,3 +22,5 @@ class CustomerFace(BaseModel):
     embedding = Column(String, nullable=True) # Should ideally be array or vector type if postgis/pgvector is used
     quality_score = Column(Float, nullable=True)
     is_primary = Column(Boolean, default=False)
+
+    customer = relationship("Customer", back_populates="faces")

@@ -14,6 +14,9 @@ class CustomerFaceBase(BaseModel):
 class CustomerFaceCreate(CustomerFaceBase):
     customer_id: int
 
+class CustomerFaceCreateRequest(CustomerFaceBase):
+    pass
+
 class CustomerFaceResponse(CustomerFaceBase, BaseSchema):
     customer_id: int
 
