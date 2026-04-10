@@ -83,3 +83,14 @@ class RecognitionProcessResponse(BaseModel):
     recognized_at: datetime
 
     model_config = ConfigDict(extra="ignore")
+
+
+class SeedLoyalCustomerRequest(BaseModel):
+    customer_id: int
+    camera_id: str = "cam_01"
+    duplicate_faces: int = 10
+    invoice_days: int = 10
+
+
+class ResetGreetingCooldownRequest(BaseModel):
+    customer_id: int
