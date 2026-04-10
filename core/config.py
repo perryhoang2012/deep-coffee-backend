@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
+from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "DeepCoffee Backend"
@@ -32,7 +33,7 @@ class Settings(BaseSettings):
     DASHBOARD_EVENT_BUFFER_SIZE: int = 100
     AUTO_CREATE_TABLES: bool = True
     FACE_EMBEDDING_SIZE: int = 64
-    YOLO_MODEL_PATH: str | None = None
+    YOLO_MODEL_PATH: Optional[str] = None
     STORAGE_DIR: str = "storage"
     FACE_STORAGE_SUBDIR: str = "faces"
     RECOGNITION_STORAGE_SUBDIR: str = "recognitions"
