@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -15,7 +16,7 @@ class GreetingService:
         recognition_event: RecognitionEvent,
         customer: Customer,
         loyalty_result: dict,
-        greeted_at: datetime | None = None,
+        greeted_at: Optional[datetime] = None,
     ) -> dict:
         if not loyalty_result.get("qualified"):
             return {"greeting_event": None, "reason": "not_loyal_customer"}
