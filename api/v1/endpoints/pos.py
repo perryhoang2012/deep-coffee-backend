@@ -1,7 +1,9 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import String, asc, cast, desc, or_
 from sqlalchemy.orm import Session
 from core.database import get_db
+from core.pagination import paginate_query
 from models.pos import Category, Product, Invoice, InvoiceItem, Payment, Table
 from schemas.pos import (
     CategoryCreate, CategoryUpdate, CategoryResponse, 
@@ -9,11 +11,33 @@ from schemas.pos import (
     InvoiceCreate, InvoiceResponse,
     TableCreate, TableUpdate, TableResponse
 )
+from schemas.base import PaginatedResponse
 from api.dependencies import get_current_active_user
 from models.admin import User
 from datetime import datetime
 
 router = APIRouter()
+
+PRODUCT_SORT_FIELDS = {
+    "id": Product.id,
+    "name": Product.name,
+    "sku": Product.sku,
+    "price": Product.price,
+    "status": Product.status,
+    "created_at": Product.created_at,
+    "updated_at": Product.updated_at,
+}
+
+INVOICE_SORT_FIELDS = {
+    "id": Invoice.id,
+    "invoice_code": Invoice.invoice_code,
+    "total_amount": Invoice.total_amount,
+    "payment_status": Invoice.payment_status,
+    "invoice_status": Invoice.invoice_status,
+    "issued_at": Invoice.issued_at,
+    "created_at": Invoice.created_at,
+    "updated_at": Invoice.updated_at,
+}
 
 # --- Categories ---
 @router.post("/categories", response_model=CategoryResponse)
@@ -67,9 +91,36 @@ def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
     db.refresh(db_product)
     return db_product
 
-@router.get("/products", response_model=List[ProductResponse])
-def read_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(Product).offset(skip).limit(limit).all()
+@router.get("/products", response_model=PaginatedResponse[ProductResponse])
+def read_products(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+    skip: int | None = Query(default=None, ge=0),
+    search: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    sort_by: str = Query(default="id"),
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
+    db: Session = Depends(get_db),
+):
+    products_query = db.query(Product)
+
+    if search:
+        search_term = f"%{search.strip()}%"
+        products_query = products_query.filter(
+            or_(
+                Product.name.ilike(search_term),
+                Product.sku.ilike(search_term),
+            )
+        )
+
+    if status:
+        products_query = products_query.filter(Product.status == status)
+
+    sort_column = PRODUCT_SORT_FIELDS.get(sort_by, Product.id)
+    sort_expression = asc(sort_column) if sort_order == "asc" else desc(sort_column)
+    products_query = products_query.order_by(sort_expression)
+
+    return paginate_query(products_query, page=page, limit=limit, skip=skip)
 
 @router.get("/products/{product_id}", response_model=ProductResponse)
 def read_product(product_id: int, db: Session = Depends(get_db)):
@@ -146,9 +197,36 @@ def create_invoice(
     db.refresh(db_invoice)
     return db_invoice
 
-@router.get("/invoices", response_model=List[InvoiceResponse])
-def read_invoices(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(Invoice).offset(skip).limit(limit).all()
+@router.get("/invoices", response_model=PaginatedResponse[InvoiceResponse])
+def read_invoices(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+    skip: int | None = Query(default=None, ge=0),
+    search: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    sort_by: str = Query(default="id"),
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
+    db: Session = Depends(get_db),
+):
+    invoices_query = db.query(Invoice)
+
+    if search:
+        search_term = f"%{search.strip()}%"
+        invoices_query = invoices_query.filter(
+            or_(
+                Invoice.invoice_code.ilike(search_term),
+                cast(Invoice.id, String).ilike(search_term),
+            )
+        )
+
+    if status:
+        invoices_query = invoices_query.filter(Invoice.invoice_status == status)
+
+    sort_column = INVOICE_SORT_FIELDS.get(sort_by, Invoice.id)
+    sort_expression = asc(sort_column) if sort_order == "asc" else desc(sort_column)
+    invoices_query = invoices_query.order_by(sort_expression)
+
+    return paginate_query(invoices_query, page=page, limit=limit, skip=skip)
 
 @router.get("/invoices/{invoice_id}", response_model=InvoiceResponse)
 def read_invoice(invoice_id: int, db: Session = Depends(get_db)):
