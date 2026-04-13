@@ -1,8 +1,13 @@
-from fastapi import FastAPI
+from http import HTTPStatus
+from typing import Any
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
 from pathlib import Path
 
@@ -22,6 +27,29 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+
+def build_error_response(
+    status_code: int,
+    detail: Any,
+    *,
+    message: str | None = None,
+    error: str | None = None,
+) -> dict[str, Any]:
+    try:
+        default_error = HTTPStatus(status_code).phrase
+    except ValueError:
+        default_error = "Error"
+
+    if message is None:
+        message = detail if isinstance(detail, str) and detail else default_error
+
+    return {
+        "message": message,
+        "status": status_code,
+        "error": error or default_error,
+        "detail": detail,
+    }
 
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
@@ -44,6 +72,45 @@ def root():
 @app.get("/face-test", include_in_schema=False)
 def face_test_page():
     return FileResponse(static_dir / "face-test.html")
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(_: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=build_error_response(exc.status_code, exc.detail),
+        headers=getattr(exc, "headers", None),
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(_: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content=build_error_response(
+            422,
+            exc.errors(),
+            message="Validation error",
+        ),
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception(
+        "Unhandled exception while processing %s %s",
+        request.method,
+        request.url.path,
+        exc_info=exc,
+    )
+    return JSONResponse(
+        status_code=500,
+        content=build_error_response(
+            500,
+            "An unexpected error occurred",
+            message="Internal server error",
+        ),
+    )
 
 @app.on_event("startup")
 def startup_event():
