@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 from schemas.base import BaseSchema
@@ -94,3 +94,34 @@ class SeedLoyalCustomerRequest(BaseModel):
 
 class ResetGreetingCooldownRequest(BaseModel):
     customer_id: int
+
+
+class LoyalCustomerRecognitionCustomer(BaseModel):
+    id: int
+    name: str
+    phone: Optional[str] = None
+    total_orders: int = Field(serialization_alias="totalOrders")
+    recent_orders: int = Field(serialization_alias="recentOrders")
+    loyal_status: str = Field(serialization_alias="loyalStatus")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class LoyalCustomerRecognitionResponse(BaseModel):
+    matched: bool
+    is_loyal: bool = Field(serialization_alias="isLoyal")
+    customer: Optional[LoyalCustomerRecognitionCustomer] = None
+    greeting_text: Optional[str] = Field(default=None, serialization_alias="greetingText")
+    audio_url: Optional[str] = Field(default=None, serialization_alias="audioUrl")
+    confidence: Optional[float] = None
+    message: Optional[str] = None
+    recognition_status: Optional[str] = Field(default=None, serialization_alias="recognitionStatus")
+    was_greeted: bool = Field(default=False, serialization_alias="wasGreeted")
+    detector_used: Optional[str] = Field(default=None, serialization_alias="detectorUsed")
+    faces_detected: int = Field(default=0, serialization_alias="facesDetected")
+    snapshot_path: Optional[str] = Field(default=None, serialization_alias="snapshotPath")
+    recognized_at: Optional[datetime] = Field(default=None, serialization_alias="recognizedAt")
+    camera_id: Optional[str] = Field(default=None, serialization_alias="cameraId")
+    branch_id: Optional[str] = Field(default=None, serialization_alias="branchId")
+
+    model_config = ConfigDict(populate_by_name=True)

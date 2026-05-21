@@ -32,12 +32,13 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGIN_REGEX: str = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
     # Loyalty rules
-    LOYALTY_INVOICE_REQUIRED: int = 10
-    LOYALTY_DAYS_WINDOW: int = 30
+    LOYAL_CUSTOMER_MIN_ORDERS: int = 10
+    LOYAL_CUSTOMER_PERIOD_DAYS: int = 30
 
     # AI/CV and greeting rules
-    FACE_MATCH_THRESHOLD: float = 0.82
-    GREETING_COOLDOWN_HOURS: int = 12
+    FACE_RECOGNITION_THRESHOLD: float = 0.82
+    RECOGNITION_THROTTLE_MS: int = 3000
+    GREETING_COOLDOWN_MINUTES: int = 5
     RECOGNITION_DUPLICATE_WINDOW_SECONDS: int = 30
     DASHBOARD_EVENT_BUFFER_SIZE: int = 100
     AUTO_CREATE_TABLES: bool = True
@@ -58,6 +59,18 @@ class Settings(BaseSettings):
     @property
     def RECOGNITION_STORAGE_PATH(self) -> Path:
         return self.STORAGE_PATH / self.RECOGNITION_STORAGE_SUBDIR
+
+    @property
+    def LOYALTY_INVOICE_REQUIRED(self) -> int:
+        return self.LOYAL_CUSTOMER_MIN_ORDERS
+
+    @property
+    def LOYALTY_DAYS_WINDOW(self) -> int:
+        return self.LOYAL_CUSTOMER_PERIOD_DAYS
+
+    @property
+    def FACE_MATCH_THRESHOLD(self) -> float:
+        return self.FACE_RECOGNITION_THRESHOLD
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 

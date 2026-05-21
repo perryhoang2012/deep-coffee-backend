@@ -22,7 +22,9 @@ class GreetingService:
             return {"greeting_event": None, "reason": "not_loyal_customer"}
 
         greeted_at = greeted_at or datetime.utcnow()
-        cooldown_threshold = greeted_at - timedelta(hours=settings.GREETING_COOLDOWN_HOURS)
+        cooldown_threshold = greeted_at - timedelta(
+            minutes=settings.GREETING_COOLDOWN_MINUTES
+        )
         recent_greeting = (
             self.db.query(GreetingEvent)
             .filter(

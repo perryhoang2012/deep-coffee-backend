@@ -32,17 +32,53 @@ DeepCoffee_BE/
 docker-compose up -d
 ```
 
-**2. Cài Đặt Môi Trường Ảo Python (.venv):**
+**2. Cài Đặt Môi Trường Ảo Python (.venv) và Dependencies:**
 Hệ thống sử dụng Driver Python thuần `pg8000` để vượt qua lỗi thiếu `pg_config` của `psycopg2` trên MacOS.
-```bash
+
+**Windows (PowerShell):**
+```powershell
 python -m venv .venv
+.\.venv\Scripts\activate
+.\.venv\Scripts\pip.exe install -r requirements.txt
+```
+
+**macOS / Linux:**
+```bash
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**3. Test Local FastAPI Server**
-Chạy ứng dụng với hot-reload Uvicorn:
+**3. Khởi tạo Cơ sở dữ liệu và Dữ liệu mẫu (Setup & Seed):**
+
+Sau khi database (Docker) đã chạy và môi trường ảo đã được kích hoạt, bạn cần chạy script setup để tạo database `deepcoffee` và nạp dữ liệu mẫu (admin, sản phẩm, bàn...).
+
+**macOS / Linux (hoặc Git Bash trên Windows):**
 ```bash
+bash scripts/set_up.sh
+```
+
+**Windows (PowerShell - Thủ công):**
+```powershell
+# Kích hoạt môi trường ảo nếu chưa làm
+.\.venv\Scripts\activate
+
+# Chạy script seed data
+$env:PYTHONPATH = "."
+python scripts/seed_data.py
+```
+
+**4. Khởi Chạy FastAPI Server (với Auto-Reload):**
+
+**Windows (PowerShell):**
+```powershell
+.\.venv\Scripts\uvicorn.exe main:app --reload
+```
+
+**macOS / Linux:**
+```bash
+source .venv/bin/activate
 uvicorn main:app --reload
 ```
+
 Sau đó truy cập trang Swagger Test: [http://localhost:8000/docs](http://localhost:8000/docs)

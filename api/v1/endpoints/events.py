@@ -18,6 +18,7 @@ from schemas.event import (
     CameraResponse,
     CameraUpdate,
     GreetingEventResponse,
+    LoyalCustomerRecognitionResponse,
     LoyaltyCheckResponse,
     RecognitionEventResponse,
     RecognitionProcessResponse,
@@ -25,12 +26,58 @@ from schemas.event import (
     ResetGreetingCooldownRequest,
     SeedLoyalCustomerRequest,
 )
+from services.greeting_service import GreetingService
 from services.loyalty_service import LoyaltyService
 from services.recognition_service import RecognitionService
 from services.storage_service import StorageService
 from services.vision_service import VisionService
 
 router = APIRouter()
+
+
+def _get_or_create_camera(
+    db: Session,
+    camera_id: str,
+    branch_id: Optional[str] = None,
+) -> Camera:
+    normalized_camera_id = (camera_id or "browser_loyal_customer_camera").strip()
+    if not normalized_camera_id:
+        normalized_camera_id = "browser_loyal_customer_camera"
+
+    if normalized_camera_id.isdigit():
+        camera = db.query(Camera).filter(Camera.id == int(normalized_camera_id)).first()
+        if camera:
+            return camera
+
+    camera = db.query(Camera).filter(Camera.name == normalized_camera_id).first()
+    if camera:
+        if branch_id and not camera.location:
+            camera.location = branch_id
+            db.commit()
+            db.refresh(camera)
+        return camera
+
+    camera = Camera(
+        name=normalized_camera_id,
+        location=branch_id,
+        status="active",
+        stream_source="browser",
+    )
+    db.add(camera)
+    db.commit()
+    db.refresh(camera)
+    return camera
+
+
+def _build_recognition_failure_message(reason: Optional[str], detail: Optional[str] = None) -> str:
+    if detail:
+        return detail
+
+    return {
+        "no_face_detected": "Không phát hiện khuôn mặt trong khung hình",
+        "invalid_image": "Ảnh gửi lên không hợp lệ",
+        "missing_dependency": "Backend chưa sẵn sàng cho xử lý thị giác máy tính",
+    }.get(reason or "", "Không thể xử lý ảnh nhận diện")
 
 @router.post("/recognition", response_model=RecognitionProcessResponse)
 def handle_recognition_event(
@@ -77,9 +124,8 @@ async def handle_recognition_image(
         customer_id=customer_id,
         embedding=vision_result["embedding"],
         snapshot_path=snapshot_path,
+        recognized_at=recognized_at,
     )
-    if recognized_at:
-        payload.recognized_at = recognized_at
 
     recognition_result = RecognitionService(db).process_recognition_event(payload)
     recognition_result["detector_used"] = vision_result["detector_used"]
@@ -87,6 +133,129 @@ async def handle_recognition_image(
     recognition_result["bounding_box"] = vision_result["bounding_box"]
     recognition_result["snapshot_path"] = snapshot_path
     return recognition_result
+
+
+@router.post(
+    "/loyal-customers/recognize-face",
+    response_model=LoyalCustomerRecognitionResponse,
+)
+async def recognize_loyal_customer_face(
+    camera_id: str = Form(default="browser_loyal_customer_camera"),
+    image: UploadFile = File(...),
+    branch_id: Optional[str] = Form(default=None),
+    recognized_at: Optional[str] = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    del current_user
+
+    camera = _get_or_create_camera(db, camera_id, branch_id)
+    image_bytes = await image.read()
+    snapshot_path = StorageService().save_recognition_snapshot(
+        camera.name,
+        image.filename or "capture.jpg",
+        image_bytes,
+    )
+
+    vision_result = VisionService().extract_face_embedding(image_bytes)
+    if not vision_result["success"]:
+        return {
+            "matched": False,
+            "is_loyal": False,
+            "customer": None,
+            "greeting_text": None,
+            "audio_url": None,
+            "confidence": None,
+            "message": _build_recognition_failure_message(
+                vision_result.get("reason"),
+                vision_result.get("message"),
+            ),
+            "recognition_status": vision_result.get("reason"),
+            "was_greeted": False,
+            "detector_used": vision_result.get("detector_used"),
+            "faces_detected": vision_result.get("faces_detected", 0),
+            "snapshot_path": snapshot_path,
+            "recognized_at": datetime.utcnow(),
+            "camera_id": camera.name,
+            "branch_id": branch_id,
+        }
+
+    payload = RecognitionRequest(
+        camera_id=camera.id,
+        embedding=vision_result["embedding"],
+        snapshot_path=snapshot_path,
+        recognized_at=recognized_at,
+    )
+
+    recognition_result = RecognitionService(db).process_recognition_event(payload)
+    matched_customer_id = recognition_result.get("matched_customer_id")
+    matched_customer = None
+    if matched_customer_id is not None:
+        matched_customer = db.query(Customer).filter(Customer.id == matched_customer_id).first()
+
+    if not matched_customer:
+        return {
+            "matched": False,
+            "is_loyal": False,
+            "customer": None,
+            "greeting_text": None,
+            "audio_url": None,
+            "confidence": recognition_result.get("confidence"),
+            "message": "Không tìm thấy khách hàng phù hợp",
+            "recognition_status": recognition_result.get("recognition_status"),
+            "was_greeted": recognition_result.get("was_greeted", False),
+            "detector_used": vision_result.get("detector_used"),
+            "faces_detected": vision_result.get("faces_detected", 0),
+            "snapshot_path": snapshot_path,
+            "recognized_at": recognition_result.get("recognized_at"),
+            "camera_id": camera.name,
+            "branch_id": branch_id,
+        }
+
+    loyalty_result = LoyaltyService(db).check_customer_loyalty(matched_customer.id)
+    is_loyal = loyalty_result.get("qualified", False)
+    was_greeted = recognition_result.get("was_greeted", False)
+    greeting_text = (
+        GreetingService(db).build_greeting_message(matched_customer)
+        if is_loyal and was_greeted
+        else None
+    )
+
+    if is_loyal:
+        if was_greeted:
+            message = "Đã nhận diện khách hàng thân thiết"
+        else:
+            message = (
+                "Đã nhận diện khách hàng thân thiết, nhưng đang trong thời gian chờ "
+                "5 phút trước khi phát lời chào tiếp theo"
+            )
+    else:
+        message = "Đã nhận diện khách hàng nhưng chưa đạt ngưỡng thân thiết"
+
+    return {
+        "matched": True,
+        "is_loyal": is_loyal,
+        "customer": {
+            "id": matched_customer.id,
+            "name": matched_customer.full_name,
+            "phone": matched_customer.phone,
+            "total_orders": loyalty_result.get("total_orders", 0),
+            "recent_orders": loyalty_result.get("invoice_count_period", 0),
+            "loyal_status": "loyal" if is_loyal else "regular",
+        },
+        "greeting_text": greeting_text,
+        "audio_url": None,
+        "confidence": recognition_result.get("confidence"),
+        "message": message,
+        "recognition_status": recognition_result.get("recognition_status"),
+        "was_greeted": was_greeted,
+        "detector_used": vision_result.get("detector_used"),
+        "faces_detected": vision_result.get("faces_detected", 0),
+        "snapshot_path": snapshot_path,
+        "recognized_at": recognition_result.get("recognized_at"),
+        "camera_id": camera.name,
+        "branch_id": branch_id,
+    }
 
 @router.post("/test-scenario/register-face")
 async def register_face_for_test(
