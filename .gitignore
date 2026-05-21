@@ -30,3 +30,8 @@ archive.zip
 .DS_Store
 
 .codspeed
+
+# Local Storage (Images, Face captures, Recognitions)
+storage/
+storage/**
+!storage/.gitkeep

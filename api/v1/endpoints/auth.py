@@ -26,4 +26,9 @@ def login_access_token(login_data: LoginRequest, db: Session = Depends(get_db)):
     access_token = create_access_token(
         subject=user.username, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "name": user.full_name,
+        "role": user.role
+    }

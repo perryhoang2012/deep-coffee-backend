@@ -301,14 +301,12 @@ async def register_face_for_test(
 
 @router.post("/test-scenario/seed-loyal-customer")
 def seed_loyal_customer_scenario(
-    payload: SeedLoyalCustomerRequest,
+    customer_id: int = Form(...),
+    camera_id: str = Form("cam_01"),
+    duplicate_faces: int = Form(10),
+    invoice_days: int = Form(10),
     db: Session = Depends(get_db),
 ):
-    customer_id = payload.customer_id
-    camera_id = payload.camera_id
-    duplicate_faces = payload.duplicate_faces
-    invoice_days = payload.invoice_days
-
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -404,10 +402,9 @@ def seed_loyal_customer_scenario(
 
 @router.post("/test-scenario/reset-greeting-cooldown")
 def reset_greeting_cooldown(
-    payload: ResetGreetingCooldownRequest,
+    customer_id: int = Form(...),
     db: Session = Depends(get_db),
 ):
-    customer_id = payload.customer_id
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
