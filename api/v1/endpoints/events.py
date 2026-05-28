@@ -31,6 +31,7 @@ from services.loyalty_service import LoyaltyService
 from services.recognition_service import RecognitionService
 from services.storage_service import StorageService
 from services.vision_service import VisionService
+from services.customer_face_retention import prune_customer_faces
 
 router = APIRouter()
 
@@ -286,6 +287,7 @@ async def register_face_for_test(
         is_primary=is_primary,
     )
     db.add(db_face)
+    prune_customer_faces(db, customer_id)
     db.commit()
     db.refresh(db_face)
 
@@ -350,6 +352,8 @@ def seed_loyal_customer_scenario(
             db.add(new_face)
             db.flush()
             duplicated_face_ids.append(new_face.id)
+
+    prune_customer_faces(db, customer_id)
 
     created_invoice_codes = []
     creator = db.query(User).order_by(User.id.asc()).first()

@@ -45,5 +45,13 @@ class SystemSettingBase(BaseModel):
 class SystemSettingCreate(SystemSettingBase):
     pass
 
+class SystemSettingUpdate(BaseModel):
+    value: Optional[str] = None
+    description: Optional[str] = None
+
+class SystemSettingUpsert(BaseModel):
+    value: str
+    description: Optional[str] = None
+
 class SystemSettingResponse(SystemSettingBase, BaseSchema):
     pass

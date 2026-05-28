@@ -1,13 +1,58 @@
-from pydantic import BaseModel
+import re
+import unicodedata
+
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import datetime
 from schemas.base import BaseSchema
+
+
+STATUS_ALIASES = {
+    "cho_xu_ly": "pending",
+    "co_khach": "occupied",
+    "con_hang": "in_stock",
+    "da_hoan_tien": "refunded",
+    "da_huy": "cancelled",
+    "da_thanh_toan": "paid",
+    "dang_ban": "active",
+    "dang_hoat_dong": "active",
+    "dang_xu_ly": "processing",
+    "dat_truoc": "reserved",
+    "het_hang": "out_of_stock",
+    "hoan_thanh": "completed",
+    "hoan_tien": "refunded",
+    "hop_le": "valid",
+    "huy": "cancelled",
+    "huy_toan": "void",
+    "khong_hoat_dong": "inactive",
+    "sap_het": "low_stock",
+    "tam_an": "inactive",
+    "thanh_toan": "paid",
+    "trong": "available",
+}
+
+
+def normalize_status_code(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return value
+
+    normalized = unicodedata.normalize("NFD", str(value).strip().lower())
+    normalized = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    normalized = normalized.replace("đ", "d")
+    normalized = re.sub(r"[^a-z0-9]+", "_", normalized).strip("_")
+
+    return STATUS_ALIASES.get(normalized, normalized)
 
 # Category
 class CategoryBase(BaseModel):
     name: str
     status: Optional[str] = "active"
     sort_order: Optional[int] = 0
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        return normalize_status_code(value)
 
 class CategoryCreate(CategoryBase):
     pass
@@ -16,6 +61,11 @@ class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
     sort_order: Optional[int] = None
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        return normalize_status_code(value)
 
 class CategoryResponse(CategoryBase, BaseSchema):
     pass
@@ -26,8 +76,15 @@ class ProductBase(BaseModel):
     sku: Optional[str] = None
     name: str
     price: float
+    stock_quantity: int = 0
+    low_stock_threshold: int = 5
     status: Optional[str] = "active"
     image_url: Optional[str] = None
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        return normalize_status_code(value)
 
 class ProductCreate(ProductBase):
     pass
@@ -37,8 +94,15 @@ class ProductUpdate(BaseModel):
     sku: Optional[str] = None
     name: Optional[str] = None
     price: Optional[float] = None
+    stock_quantity: Optional[int] = None
+    low_stock_threshold: Optional[int] = None
     status: Optional[str] = None
     image_url: Optional[str] = None
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        return normalize_status_code(value)
 
 class ProductResponse(ProductBase, BaseSchema):
     pass
@@ -50,6 +114,11 @@ class TableBase(BaseModel):
     status: Optional[str] = "available"
     capacity: Optional[int] = None
 
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        return normalize_status_code(value)
+
 class TableCreate(TableBase):
     pass
 
@@ -58,6 +127,11 @@ class TableUpdate(BaseModel):
     area: Optional[str] = None
     status: Optional[str] = None
     capacity: Optional[int] = None
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        return normalize_status_code(value)
 
 class TableResponse(TableBase, BaseSchema):
     pass
@@ -68,6 +142,11 @@ class OrderBase(BaseModel):
     customer_id: Optional[int] = None
     order_status: Optional[str] = "pending"
     created_by: int
+
+    @field_validator("order_status", mode="before")
+    @classmethod
+    def normalize_order_status(cls, value):
+        return normalize_status_code(value)
 
 class OrderCreate(OrderBase):
     pass
@@ -115,6 +194,11 @@ class InvoiceBase(BaseModel):
     payment_status: Optional[str] = "unpaid"
     invoice_status: Optional[str] = "valid"
     created_by: int
+
+    @field_validator("payment_status", "invoice_status", mode="before")
+    @classmethod
+    def normalize_invoice_status(cls, value):
+        return normalize_status_code(value)
 
 class InvoiceCreate(InvoiceBase):
     items: List[InvoiceItemCreate]

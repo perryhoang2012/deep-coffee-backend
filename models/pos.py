@@ -18,6 +18,8 @@ class Product(BaseModel):
     sku = Column(String, unique=True, index=True, nullable=True)
     name = Column(String, nullable=False)
     price = Column(Float, nullable=False)
+    stock_quantity = Column(Integer, default=0, nullable=False)
+    low_stock_threshold = Column(Integer, default=5, nullable=False)
     status = Column(String, default="active")
     image_url = Column(String, nullable=True)
 

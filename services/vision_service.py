@@ -6,6 +6,8 @@ from core.config import settings
 
 
 class VisionService:
+    _insightface_app = None
+
     def extract_face_embedding(self, image_bytes: bytes) -> dict:
         try:
             image = self._decode_image(image_bytes)
@@ -28,12 +30,33 @@ class VisionService:
 
         detection = self._detect_face(image)
         if not detection["face_crop"] is None:
-            embedding = self._build_embedding(detection["face_crop"])
+            try:
+                embedding = self._build_embedding(image, detection["bounding_box"])
+            except ModuleNotFoundError as exc:
+                return {
+                    "success": False,
+                    "reason": "missing_dependency",
+                    "message": f"Missing Python package: {exc.name}",
+                    "detector_used": detection["detector_used"],
+                    "faces_detected": detection["faces_detected"],
+                    "bounding_box": detection["bounding_box"],
+                }
+            except RuntimeError as exc:
+                return {
+                    "success": False,
+                    "reason": "face_embedding_failed",
+                    "message": str(exc),
+                    "detector_used": f"{detection['detector_used']}+insightface",
+                    "faces_detected": detection["faces_detected"],
+                    "bounding_box": detection["bounding_box"],
+                }
+
             return {
                 "success": True,
                 "reason": "face_detected",
                 "embedding": embedding,
-                "detector_used": detection["detector_used"],
+                "embedding_model": "insightface",
+                "detector_used": f"{detection['detector_used']}+insightface",
                 "faces_detected": detection["faces_detected"],
                 "bounding_box": detection["bounding_box"],
             }
@@ -120,21 +143,72 @@ class VisionService:
             "bounding_box": {"x1": int(x), "y1": int(y), "x2": int(x + w), "y2": int(y + h)},
         }
 
-    def _build_embedding(self, face_crop) -> list[float]:
-        import cv2
+    def _build_embedding(self, image, bounding_box: Optional[dict] = None) -> list[float]:
         import numpy as np
 
-        target_size = settings.FACE_EMBEDDING_SIZE
-        gray = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
-        normalized = cv2.resize(gray, (target_size, target_size), interpolation=cv2.INTER_AREA)
-        normalized = normalized.astype("float32") / 255.0
+        app = self._get_insightface_app()
+        faces = app.get(image, max_num=0)
+        if not faces:
+            raise RuntimeError("InsightFace could not extract an embedding from the detected face.")
 
-        # MVP embedding: downsample face patch into a deterministic feature vector.
-        block_size = 8
-        embedding = []
-        for row in range(0, target_size, block_size):
-            for col in range(0, target_size, block_size):
-                block = normalized[row:row + block_size, col:col + block_size]
-                embedding.append(float(np.mean(block)))
+        face = self._select_insightface_match(faces, bounding_box)
+        embedding = getattr(face, "normed_embedding", None)
+        if embedding is None:
+            embedding = getattr(face, "embedding", None)
+        if embedding is None:
+            raise RuntimeError("InsightFace returned a face without an embedding.")
 
-        return embedding
+        embedding_array = np.asarray(embedding, dtype="float32")
+        norm = float(np.linalg.norm(embedding_array))
+        if norm == 0:
+            raise RuntimeError("InsightFace returned an empty embedding.")
+
+        embedding_array = embedding_array / norm
+        return [float(value) for value in embedding_array.tolist()]
+
+    def _get_insightface_app(self):
+        if VisionService._insightface_app is not None:
+            return VisionService._insightface_app
+
+        from insightface.app import FaceAnalysis
+
+        app = FaceAnalysis(
+            name=settings.INSIGHTFACE_MODEL_NAME,
+            root=settings.INSIGHTFACE_MODEL_ROOT,
+            allowed_modules=["detection", "recognition"],
+            providers=["CPUExecutionProvider"],
+        )
+        app.prepare(
+            ctx_id=-1,
+            det_size=(settings.INSIGHTFACE_DET_SIZE, settings.INSIGHTFACE_DET_SIZE),
+        )
+        VisionService._insightface_app = app
+        return app
+
+    def _face_area(self, bbox) -> float:
+        if bbox is None or len(bbox) < 4:
+            return 0.0
+
+        x1, y1, x2, y2 = [float(value) for value in bbox[:4]]
+        return max(0.0, x2 - x1) * max(0.0, y2 - y1)
+
+    def _select_insightface_match(self, faces, bounding_box: Optional[dict]):
+        if not bounding_box:
+            return max(
+                faces,
+                key=lambda detected_face: self._face_area(getattr(detected_face, "bbox", None)),
+            )
+
+        target_center_x = (float(bounding_box["x1"]) + float(bounding_box["x2"])) / 2
+        target_center_y = (float(bounding_box["y1"]) + float(bounding_box["y2"])) / 2
+
+        def distance_to_detected_face(detected_face) -> float:
+            bbox = getattr(detected_face, "bbox", None)
+            if bbox is None or len(bbox) < 4:
+                return float("inf")
+
+            face_center_x = (float(bbox[0]) + float(bbox[2])) / 2
+            face_center_y = (float(bbox[1]) + float(bbox[3])) / 2
+            return (face_center_x - target_center_x) ** 2 + (face_center_y - target_center_y) ** 2
+
+        return min(faces, key=distance_to_detected_face)

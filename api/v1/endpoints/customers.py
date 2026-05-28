@@ -15,6 +15,7 @@ from api.dependencies import get_current_active_user
 from models.admin import User
 from services.storage_service import StorageService
 from services.vision_service import VisionService
+from services.customer_face_retention import prune_customer_faces
 
 router = APIRouter()
 
@@ -128,6 +129,7 @@ def create_customer_face(
 
     db_face = CustomerFace(customer_id=customer_id, **face_in.model_dump())
     db.add(db_face)
+    prune_customer_faces(db, customer_id)
     db.commit()
     db.refresh(db_face)
     return db_face
@@ -168,6 +170,7 @@ async def upload_customer_face(
         customer.note = f"{customer.note}\n{note}".strip() if customer.note else note
 
     db.add(db_face)
+    prune_customer_faces(db, customer_id)
     db.commit()
     db.refresh(db_face)
     return db_face

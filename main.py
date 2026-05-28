@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
@@ -22,6 +23,23 @@ import models.event  # noqa: F401
 import models.pos  # noqa: F401
 
 logger = logging.getLogger(__name__)
+
+
+def ensure_product_inventory_columns():
+    inspector = inspect(engine)
+    if not inspector.has_table("products"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("products")}
+    column_statements = {
+        "stock_quantity": "ALTER TABLE products ADD COLUMN stock_quantity INTEGER DEFAULT 0 NOT NULL",
+        "low_stock_threshold": "ALTER TABLE products ADD COLUMN low_stock_threshold INTEGER DEFAULT 5 NOT NULL",
+    }
+
+    with engine.begin() as connection:
+        for column_name, statement in column_statements.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -121,6 +139,7 @@ def startup_event():
 
     try:
         Base.metadata.create_all(bind=engine)
+        ensure_product_inventory_columns()
     except SQLAlchemyError as exc:
         logger.warning("Database is unavailable during startup table creation: %s", exc)
 

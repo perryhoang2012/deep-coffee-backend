@@ -36,7 +36,10 @@ class Settings(BaseSettings):
     LOYAL_CUSTOMER_PERIOD_DAYS: int = 30
 
     # AI/CV and greeting rules
-    FACE_RECOGNITION_THRESHOLD: float = 0.82
+    FACE_RECOGNITION_THRESHOLD: float = 0.80
+    INSIGHTFACE_MODEL_NAME: str = "buffalo_l"
+    INSIGHTFACE_MODEL_ROOT: str = "storage/models/insightface"
+    INSIGHTFACE_DET_SIZE: int = 640
     RECOGNITION_THROTTLE_MS: int = 3000
     GREETING_COOLDOWN_MINUTES: int = 5
     RECOGNITION_DUPLICATE_WINDOW_SECONDS: int = 30
