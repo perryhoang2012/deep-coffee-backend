@@ -41,6 +41,22 @@ def ensure_product_inventory_columns():
             if column_name not in existing_columns:
                 connection.execute(text(statement))
 
+
+def ensure_invoice_table_columns():
+    inspector = inspect(engine)
+    if not inspector.has_table("invoices"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("invoices")}
+    column_statements = {
+        "table_id": "ALTER TABLE invoices ADD COLUMN table_id INTEGER",
+    }
+
+    with engine.begin() as connection:
+        for column_name, statement in column_statements.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
@@ -140,6 +156,7 @@ def startup_event():
     try:
         Base.metadata.create_all(bind=engine)
         ensure_product_inventory_columns()
+        ensure_invoice_table_columns()
     except SQLAlchemyError as exc:
         logger.warning("Database is unavailable during startup table creation: %s", exc)
 

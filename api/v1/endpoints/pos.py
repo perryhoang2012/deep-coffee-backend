@@ -163,6 +163,7 @@ def create_invoice(
     # Create main invoice
     db_invoice = Invoice(
         customer_id=invoice_in.customer_id,
+        table_id=invoice_in.table_id,
         invoice_code=f"INV-{uuid.uuid4().hex[:8].upper()}",
         subtotal=invoice_in.subtotal,
         discount_amount=invoice_in.discount_amount,
@@ -176,13 +177,18 @@ def create_invoice(
     db.add(db_invoice)
     db.flush() # get ID
 
-    # Create Items
+    # Create Items and deduct stock
     for item in invoice_in.items:
         db_item = InvoiceItem(
             invoice_id=db_invoice.id,
             **item.model_dump()
         )
         db.add(db_item)
+        
+        # Deduct stock_quantity from Product
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        if product:
+            product.stock_quantity = max(0, product.stock_quantity - item.quantity)
         
     # Create Payments
     for pmt in invoice_in.payments:
@@ -192,6 +198,12 @@ def create_invoice(
             **pmt.model_dump()
         )
         db.add(db_pmt)
+
+    # Release Table status if table_id is provided and payment_status is paid
+    if invoice_in.table_id and invoice_in.payment_status == "paid":
+        table = db.query(Table).filter(Table.id == invoice_in.table_id).first()
+        if table:
+            table.status = "available"
 
     db.commit()
     db.refresh(db_invoice)
