@@ -43,7 +43,7 @@ def normalize_status_code(value: Optional[str]) -> Optional[str]:
 
     return STATUS_ALIASES.get(normalized, normalized)
 
-# Category
+
 class CategoryBase(BaseModel):
     name: str
     status: Optional[str] = "active"
@@ -70,7 +70,7 @@ class CategoryUpdate(BaseModel):
 class CategoryResponse(CategoryBase, BaseSchema):
     pass
 
-# Product
+
 class ProductBase(BaseModel):
     category_id: int
     sku: Optional[str] = None
@@ -107,7 +107,7 @@ class ProductUpdate(BaseModel):
 class ProductResponse(ProductBase, BaseSchema):
     pass
 
-# Table
+
 class TableBase(BaseModel):
     name: str
     area: Optional[str] = None
@@ -136,7 +136,7 @@ class TableUpdate(BaseModel):
 class TableResponse(TableBase, BaseSchema):
     pass
 
-# Order
+
 class OrderBase(BaseModel):
     table_id: Optional[int] = None
     customer_id: Optional[int] = None
@@ -154,7 +154,7 @@ class OrderCreate(OrderBase):
 class OrderResponse(OrderBase, BaseSchema):
     pass
 
-# Invoice Item
+
 class InvoiceItemBase(BaseModel):
     product_id: int
     product_name_snapshot: str
@@ -170,7 +170,7 @@ class InvoiceItemResponse(InvoiceItemBase):
     id: int
     invoice_id: int
 
-# Payment
+
 class PaymentBase(BaseModel):
     method: str
     amount: float
@@ -184,7 +184,7 @@ class PaymentResponse(PaymentBase):
     invoice_id: int
     paid_at: datetime
 
-# Invoice
+
 class InvoiceBase(BaseModel):
     customer_id: Optional[int] = None
     subtotal: float = 0.0

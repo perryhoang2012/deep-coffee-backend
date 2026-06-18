@@ -39,7 +39,6 @@ INVOICE_SORT_FIELDS = {
     "updated_at": Invoice.updated_at,
 }
 
-# --- Categories ---
 @router.post("/categories", response_model=CategoryResponse)
 def create_category(category_in: CategoryCreate, db: Session = Depends(get_db)):
     db_category = Category(**category_in.model_dump())
@@ -82,7 +81,6 @@ def delete_category(category_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"detail": "Category deleted successfully"}
 
-# --- Products ---
 @router.post("/products", response_model=ProductResponse)
 def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
     db_product = Product(**product_in.model_dump())
@@ -152,7 +150,6 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"detail": "Product deleted successfully"}
 
-# --- Invoices ---
 @router.post("/invoices", response_model=InvoiceResponse)
 def create_invoice(
     invoice_in: InvoiceCreate, 
@@ -160,7 +157,6 @@ def create_invoice(
     current_user: User = Depends(get_current_active_user)
 ):
     import uuid
-    # Create main invoice
     db_invoice = Invoice(
         customer_id=invoice_in.customer_id,
         invoice_code=f"INV-{uuid.uuid4().hex[:8].upper()}",
@@ -174,9 +170,8 @@ def create_invoice(
         issued_at=datetime.utcnow()
     )
     db.add(db_invoice)
-    db.flush() # get ID
+    db.flush()
 
-    # Create Items
     for item in invoice_in.items:
         db_item = InvoiceItem(
             invoice_id=db_invoice.id,
@@ -184,7 +179,6 @@ def create_invoice(
         )
         db.add(db_item)
         
-    # Create Payments
     for pmt in invoice_in.payments:
         db_pmt = Payment(
             invoice_id=db_invoice.id,
@@ -244,7 +238,6 @@ def delete_invoice(invoice_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"detail": "Invoice deleted successfully"}
 
-# --- Tables ---
 @router.post("/tables", response_model=TableResponse)
 def create_table(table_in: TableCreate, db: Session = Depends(get_db)):
     db_table = Table(**table_in.model_dump())

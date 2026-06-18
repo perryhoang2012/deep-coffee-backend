@@ -37,10 +37,8 @@ class LoyaltyService:
                 "days_window": settings.LOYAL_CUSTOMER_PERIOD_DAYS,
             }
 
-        # Calculate the date window
         period_start = datetime.utcnow() - timedelta(days=settings.LOYAL_CUSTOMER_PERIOD_DAYS)
 
-        # Query valid invoices in the given timeframe
         recent_invoice_count = self.db.query(func.count(Invoice.id)).filter(
             and_(
                 Invoice.customer_id == customer_id,
@@ -60,7 +58,6 @@ class LoyaltyService:
             )
         ).scalar() or 0
 
-        # Check against rule
         qualified = recent_invoice_count >= settings.LOYAL_CUSTOMER_MIN_ORDERS
 
         return {

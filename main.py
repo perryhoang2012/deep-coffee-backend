@@ -73,7 +73,6 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -143,8 +142,6 @@ def startup_event():
     except SQLAlchemyError as exc:
         logger.warning("Database is unavailable during startup table creation: %s", exc)
 
-# Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# Include WebSocket router
 app.include_router(dashboard.router, tags=["websockets"])

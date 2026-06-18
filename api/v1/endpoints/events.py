@@ -23,8 +23,6 @@ from schemas.event import (
     RecognitionEventResponse,
     RecognitionProcessResponse,
     RecognitionRequest,
-    ResetGreetingCooldownRequest,
-    SeedLoyalCustomerRequest,
 )
 from services.greeting_service import GreetingService
 from services.loyalty_service import LoyaltyService

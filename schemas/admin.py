@@ -1,9 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
-from datetime import date, time
 from schemas.base import BaseSchema
 
-# User Schemas
+
 class UserBase(BaseModel):
     username: str
     full_name: str
@@ -22,21 +21,7 @@ class UserUpdate(BaseModel):
 class UserResponse(UserBase, BaseSchema):
     pass
 
-# Employee Shift Schemas
-class EmployeeShiftBase(BaseModel):
-    user_id: int
-    shift_date: date
-    start_time: time
-    end_time: time
-    status: Optional[str] = "scheduled"
 
-class EmployeeShiftCreate(EmployeeShiftBase):
-    pass
-
-class EmployeeShiftResponse(EmployeeShiftBase, BaseSchema):
-    pass
-
-# System Setting Schemas
 class SystemSettingBase(BaseModel):
     key: str
     value: str

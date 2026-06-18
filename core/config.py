@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "DeepCoffee Backend"
     API_V1_STR: str = "/api/v1"
 
-    # Database configuration
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_USER: str = "deepcoffee_user"
     POSTGRES_PASSWORD: str = "deepcoffee_password"
@@ -19,10 +18,9 @@ class Settings(BaseSettings):
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return f"postgresql+pg8000://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    # Security
     SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 7 * 24 * 60
     BACKEND_CORS_ORIGINS: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
@@ -31,11 +29,9 @@ class Settings(BaseSettings):
     )
     BACKEND_CORS_ORIGIN_REGEX: str = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
-    # Loyalty rules
     LOYAL_CUSTOMER_MIN_ORDERS: int = 10
     LOYAL_CUSTOMER_PERIOD_DAYS: int = 30
 
-    # AI/CV and greeting rules
     FACE_RECOGNITION_THRESHOLD: float = 0.80
     INSIGHTFACE_MODEL_NAME: str = "buffalo_l"
     INSIGHTFACE_MODEL_ROOT: str = "storage/models/insightface"

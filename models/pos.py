@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, String, Integer, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from models.base import BaseModel
 
@@ -30,16 +30,16 @@ class Table(BaseModel):
     
     name = Column(String, nullable=False)
     area = Column(String, nullable=True)
-    status = Column(String, default="available") # available, occupied, reserved
+    status = Column(String, default="available")
     capacity = Column(Integer, nullable=True)
 
 class Order(BaseModel):
     __tablename__ = "orders"
     
     table_id = Column(Integer, ForeignKey("tables.id"), nullable=True)
-    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True) # Will create customers table later
-    order_status = Column(String, default="pending") # pending, processing, completed, cancelled
-    created_by = Column(Integer, ForeignKey("users.id")) # from admin
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    order_status = Column(String, default="pending")
+    created_by = Column(Integer, ForeignKey("users.id"))
 
 class Invoice(BaseModel):
     __tablename__ = "invoices"
@@ -50,8 +50,8 @@ class Invoice(BaseModel):
     discount_amount = Column(Float, default=0.0)
     surcharge_amount = Column(Float, default=0.0)
     total_amount = Column(Float, default=0.0)
-    payment_status = Column(String, default="unpaid") # unpaid, paid, refunded
-    invoice_status = Column(String, default="valid") # valid, cancelled, void
+    payment_status = Column(String, default="unpaid")
+    invoice_status = Column(String, default="valid")
     created_by = Column(Integer, ForeignKey("users.id"))
     issued_at = Column(DateTime, nullable=True)
 
@@ -75,7 +75,7 @@ class Payment(BaseModel):
     __tablename__ = "payments"
     
     invoice_id = Column(Integer, ForeignKey("invoices.id"))
-    method = Column(String, nullable=False) # cash, credit_card, transfer
+    method = Column(String, nullable=False)
     amount = Column(Float, nullable=False)
     paid_at = Column(DateTime, nullable=False)
     reference_code = Column(String, nullable=True)

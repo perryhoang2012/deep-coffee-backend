@@ -15,7 +15,6 @@ def create_access_token(subject: Union[str, Any], expires_delta: Optional[timede
     return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # Ensure hashed_password is a byte string for bcrypt
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_password_hash(password: str) -> str:

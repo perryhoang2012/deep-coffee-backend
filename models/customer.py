@@ -7,7 +7,7 @@ class Customer(BaseModel):
     
     full_name = Column(String, nullable=False)
     phone = Column(String, unique=True, index=True, nullable=True)
-    gender = Column(String, nullable=True) # male, female, other
+    gender = Column(String, nullable=True)
     birthday = Column(Date, nullable=True)
     note = Column(String, nullable=True)
 
@@ -19,7 +19,7 @@ class CustomerFace(BaseModel):
     customer_id = Column(Integer, ForeignKey("customers.id"))
     image_path = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
-    embedding = Column(String, nullable=True) # Should ideally be array or vector type if postgis/pgvector is used
+    embedding = Column(String, nullable=True)
     quality_score = Column(Float, nullable=True)
     is_primary = Column(Boolean, default=False)
 
