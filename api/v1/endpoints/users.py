@@ -89,10 +89,17 @@ def update_user(user_id: int, user_in: UserUpdate, db: Session = Depends(get_db)
         raise HTTPException(status_code=404, detail="User not found")
     
     update_data = user_in.model_dump(exclude_unset=True)
+    
+    if "username" in update_data and update_data["username"] != user.username:
+        existing_user = db.query(User).filter(User.username == update_data["username"]).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already registered")
+            
     if "password" in update_data:
-        hashed_password = get_password_hash(update_data["password"])
+        if update_data["password"]:
+            hashed_password = get_password_hash(update_data["password"])
+            update_data["hashed_password"] = hashed_password
         del update_data["password"]
-        update_data["hashed_password"] = hashed_password
         
     for field, value in update_data.items():
         setattr(user, field, value)

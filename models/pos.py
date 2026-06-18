@@ -45,6 +45,7 @@ class Invoice(BaseModel):
     __tablename__ = "invoices"
     
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    table_id = Column(Integer, ForeignKey("tables.id"), nullable=True)
     invoice_code = Column(String, unique=True, index=True, nullable=False)
     subtotal = Column(Float, default=0.0)
     discount_amount = Column(Float, default=0.0)
@@ -57,6 +58,8 @@ class Invoice(BaseModel):
 
     items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="invoice", cascade="all, delete-orphan")
+    table = relationship("Table")
+    customer = relationship("Customer")
 
 class InvoiceItem(BaseModel):
     __tablename__ = "invoice_items"

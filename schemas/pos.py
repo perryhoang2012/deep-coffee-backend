@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import datetime
 from schemas.base import BaseSchema
+from schemas.customer import CustomerResponse
 
 
 STATUS_ALIASES = {
@@ -187,13 +188,14 @@ class PaymentResponse(PaymentBase):
 
 class InvoiceBase(BaseModel):
     customer_id: Optional[int] = None
+    table_id: Optional[int] = None
     subtotal: float = 0.0
     discount_amount: float = 0.0
     surcharge_amount: float = 0.0
     total_amount: float = 0.0
     payment_status: Optional[str] = "unpaid"
     invoice_status: Optional[str] = "valid"
-    created_by: int
+    created_by: Optional[int] = None
 
     @field_validator("payment_status", "invoice_status", mode="before")
     @classmethod
@@ -209,3 +211,5 @@ class InvoiceResponse(InvoiceBase, BaseSchema):
     issued_at: Optional[datetime] = None
     items: List[InvoiceItemResponse] = []
     payments: List[PaymentResponse] = []
+    table: Optional[TableResponse] = None
+    customer: Optional[CustomerResponse] = None

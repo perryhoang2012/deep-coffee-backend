@@ -6,8 +6,8 @@ from core.database import get_db
 from core.pagination import paginate_query
 from models.pos import Category, Product, Invoice, InvoiceItem, Payment, Table
 from schemas.pos import (
-    CategoryCreate, CategoryUpdate, CategoryResponse, 
-    ProductCreate, ProductUpdate, ProductResponse, 
+    CategoryCreate, CategoryUpdate, CategoryResponse,
+    ProductCreate, ProductUpdate, ProductResponse,
     InvoiceCreate, InvoiceResponse,
     TableCreate, TableUpdate, TableResponse
 )
@@ -63,11 +63,11 @@ def update_category(category_id: int, category_in: CategoryUpdate, db: Session =
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
-    
+
     update_data = category_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(category, field, value)
-        
+
     db.commit()
     db.refresh(category)
     return category
@@ -132,11 +132,11 @@ def update_product(product_id: int, product_in: ProductUpdate, db: Session = Dep
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    
+
     update_data = product_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(product, field, value)
-        
+
     db.commit()
     db.refresh(product)
     return product
@@ -152,13 +152,14 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
 
 @router.post("/invoices", response_model=InvoiceResponse)
 def create_invoice(
-    invoice_in: InvoiceCreate, 
+    invoice_in: InvoiceCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     import uuid
     db_invoice = Invoice(
         customer_id=invoice_in.customer_id,
+        table_id=invoice_in.table_id,
         invoice_code=f"INV-{uuid.uuid4().hex[:8].upper()}",
         subtotal=invoice_in.subtotal,
         discount_amount=invoice_in.discount_amount,
@@ -178,7 +179,7 @@ def create_invoice(
             **item.model_dump()
         )
         db.add(db_item)
-        
+
     for pmt in invoice_in.payments:
         db_pmt = Payment(
             invoice_id=db_invoice.id,
@@ -186,6 +187,12 @@ def create_invoice(
             **pmt.model_dump()
         )
         db.add(db_pmt)
+
+    # Release Table status if table_id is provided and payment_status is paid
+    if invoice_in.table_id and invoice_in.payment_status == "paid":
+        table = db.query(Table).filter(Table.id == invoice_in.table_id).first()
+        if table:
+            table.status = "available"
 
     db.commit()
     db.refresh(db_invoice)
@@ -262,11 +269,11 @@ def update_table(table_id: int, table_in: TableUpdate, db: Session = Depends(get
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
-    
+
     update_data = table_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(table, field, value)
-        
+
     db.commit()
     db.refresh(table)
     return table
